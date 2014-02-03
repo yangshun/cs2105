@@ -1,0 +1,70 @@
+h1 {
+	font-size: 3em;
+	border-bottom: 1px solid #300;
+	color: #300;
+}
+.notes {
+    padding: 1em;
+	font-size: .8em;
+	color: #666;
+}
+.attachment {
+	font-size: .8em;
+	padding: .5em;
+	color: #666;
+}
+.message {
+	font-size: .8em;
+	margin-left: 20px;
+	background-color: #eef;
+	padding: 1em;
+	color: #606060;
+}
+.todo-list {
+	margin: 0em;
+	margin-left: 20px;
+	padding: 5px;
+	color: #333;
+}
+.todo-checkbox {
+    height: 20px;
+}
+.description { 
+    padding: 0.5em;
+    letter-spacing: -0.07em;
+	font-size: 1.7em;
+}
+
+/* EDITING STYLE */
+.editattachment {
+	padding-top: 10px;
+	margin-left: 0px;
+	color: #666;
+	padding: .5em;
+}
+.edittodo, .upload, textarea {
+	margin-left: 0px;
+	font-size: 1.2em;
+	border: 1px solid #666;
+	padding: .5em;
+	font-family: "Verdana";
+}
+.editnotes {
+	font-size: 1.2em;
+	border: 1px solid #666;
+	font-family: "Verdana";
+}
+.todo-form {
+	margin: 10px;
+	margin-left: 20px;
+	background: #eee;
+	padding: 10px;
+}
+.inline-form {
+	display: inline;
+}
+.submitbutton {
+	margin-left: 20px;
+	font-size: 1.2em;
+	padding: .5em;
+}

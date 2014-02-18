@@ -124,6 +124,9 @@ class WebServer {
                     continue;
                 }
 
+                // Assume everything is OK then.  Send back a reply.
+                dos.writeBytes("HTTP/1.1 200 OK\r\n");
+
                 if (fileName.endsWith("pl")) {
                     System.out.println(fileName);
                     String queryString = "";
@@ -135,9 +138,6 @@ class WebServer {
                     Process p = Runtime.getRuntime().exec("/usr/bin/env " + env +
                                                           "/usr/bin/perl " + filePath);
 
-                    // Assume everything is OK then.  Send back a reply.
-                    dos.writeBytes("HTTP/1.1 200 OK\r\n");
-
                     // We send back some HTTP response headers.
                     // dos.writeBytes("Content-length: " + file.length() + "\r\n");
                     BufferedReader br2 = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -148,7 +148,7 @@ class WebServer {
                     }
                     dos.writeBytes("\r\n");
                 } else {
-                    staticFileRequests(filePath, file);
+                    staticFileRequests(filePath);
                 }
 
                 dos.flush();
@@ -161,20 +161,21 @@ class WebServer {
         }
     }
 
-    private static void staticFileRequests(String filePath, File file) {
+    private static void staticFileRequests(String filePath) {
         try {
             if (filePath.endsWith(".html")) {
                 dos.writeBytes("Content-type: text/html\r\n");
             } else if (filePath.endsWith(".jpg")) {
                 dos.writeBytes("Content-type: image/jpeg\r\n");
             } else if (filePath.endsWith("gif")) {
-                dos.writeBytes("Content-Type: image/gif\r\n");
+                dos.writeBytes("Content-type: image/gif\r\n");
             } else if (filePath.endsWith("css")) {
-                dos.writeBytes("Content-Type: text/css\r\n");
+                dos.writeBytes("Content-type: text/css\r\n");
             }
             dos.writeBytes("\r\n");
             // Read the content 1KB at a time.
-            byte[] buffer = new byte[1024];
+            File file = new File(filePath);
+            byte[] buffer = new byte[(int)file.length()];
             FileInputStream fis = new FileInputStream(file);
             int size = fis.read(buffer);
             while (size > 0) {

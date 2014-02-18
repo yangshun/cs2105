@@ -140,56 +140,66 @@ class WebServer {
                     continue;
                 }
 
-                Process p = Runtime.getRuntime().exec("/usr/bin/perl ../" + filename);
+                String queryString = "";
+                String env = "REQUEST_METHOD=GET " + queryString;
+                Process p = Runtime.getRuntime().exec(" /usr/bin/perl " + filename);
+                
                 dos.writeBytes("HTTP/1.0 200 OK\r\n");
-                BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
-                String line;
-                while ((line = br.readLine()) != null) {
-                    dos.writeBytes(line + "\r\n");
+                BufferedReader br2 = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+                String l;
+                while ((l = br2.readLine()) != null) {
+                    dos.writeBytes(l + "\r\n");
                 }
                 dos.writeBytes("\r\n");
 
                 os.flush();
                 s.close();
-                
                 System.out.println("connection closed");
 
-                // Assume everything is OK then.  Send back a reply.
-                dos.writeBytes("HTTP/1.1 200 OK\r\n");
 
-                // We send back some HTTP response headers.
-                dos.writeBytes("Content-length: " + file.length() + "\r\n");
 
-                // We could have use Files.probeContentType to find 
-                // the content type of the requested file, but let 
-                // me do the poor man approach here.
-                if (filename.endsWith(".html")) 
-                {
-                    dos.writeBytes("Content-type: text/html\r\n");
-                }
-                if (filename.endsWith(".jpg")) 
-                {
-                    dos.writeBytes("Content-type: image/jpeg\r\n");
-                }
-                dos.writeBytes("\r\n");
 
-                // Finish with HTTP response header.  Now send
-                // the body of the file.
+
+
+
+
+                // // Assume everything is OK then.  Send back a reply.
+                // dos.writeBytes("HTTP/1.1 200 OK\r\n");
+
+                // // We send back some HTTP response headers.
+                // dos.writeBytes("Content-length: " + file.length() + "\r\n");
+
+                // // We could have use Files.probeContentType to find 
+                // // the content type of the requested file, but let 
+                // // me do the poor man approach here.
+                // if (filename.endsWith(".html")) 
+                // {
+                //     dos.writeBytes("Content-type: text/html\r\n");
+                // }
+                // if (filename.endsWith(".jpg")) 
+                // {
+                //     dos.writeBytes("Content-type: image/jpeg\r\n");
+                // }
+                // dos.writeBytes("\r\n");
+
+                // // Finish with HTTP response header.  Now send
+                // // the body of the file.
                 
-                // Read the content 1KB at a time.
-                byte[] buffer = new byte[1024];
-                FileInputStream fis = new FileInputStream(file);
-                int size = fis.read(buffer);
-                while (size > 0) 
-                {
-                    dos.write(buffer, 0, size);
-                    size = fis.read(buffer);
-                }
-                dos.flush();
+                // // Read the content 1KB at a time.
+                // byte[] buffer = new byte[1024];
+                // FileInputStream fis = new FileInputStream(file);
+                // int size = fis.read(buffer);
+                // while (size > 0) 
+                // {
+                //     dos.write(buffer, 0, size);
+                //     size = fis.read(buffer);
+                // }
+                // dos.flush();
 
-                // Finally, close the socket and get ready for
-                // another connection.
-                s.close();
+                // // Finally, close the socket and get ready for
+                // // another connection.
+                // s.close();
             }
             catch (IOException e)
             {

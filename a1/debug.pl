@@ -3,7 +3,7 @@ use CGI qw/:standard/;
 $q = new CGI();
 
 print $q->header, 
-     $q->start_html(	-title => 'Debugging Help',
+    $q->start_html(	-title => 'Debugging Help',
         	            -style => {-src=>'style.css'}),
 	$q->h1('Environment Variables'),
 	"QUERY_STRING: ", $ENV{'QUERY_STRING'}, $q->br, 

@@ -16,61 +16,50 @@ class WebServer {
     // stored.  You need to change this to your own local
     // directory if you want to play with this server code.
     static String WEB_ROOT = "../";
+    private static Socket s;
+    private static InputStream is;
+    private static OutputStream os;
+    private static BufferedReader br;
+    private static DataOutputStream dos;
 
-    public static void main(String args[]) 
-    {
+    public static void main(String args[]) {
         ServerSocket serverSocket;
         // Create a server socket, listening on port passed in via command line.
         // Usage: java WebServer <port>
         int port;
-        if (args.length != 1) 
-        {
+        if (args.length != 1) {
             System.err.println("Usage: java WebServer <port>");
             return;
-        }
-        else
-        {
+        } else {
             port = Integer.parseInt(args[0]);
         }
 
-        try 
-        {
+        try {
             serverSocket = new ServerSocket(port);
             System.out.println("Server created on port " + port);
-        } 
-        catch (IOException e)
-        {
+        } catch (IOException e) {
             System.err.println("Unable to listen on port " + port + ": " + e.getMessage());
             return;
         }
 
         // The server listens forever for new connections.  This
         // version handles only one connection at a time.
-        while (true) 
-        {
-            Socket s;
-            InputStream is;
-            OutputStream os;
-            BufferedReader br;
-            DataOutputStream dos;
-
+        while (true) {
+            
             // Wait for someone to connect.
-            try 
-            {
+            try {
                 s = serverSocket.accept();
-            } 
-            catch (IOException e)
-            {
+            } catch (IOException e) {
                 System.err.println("Unable to accept connection: " + e.getMessage());
                 continue;
             }
+
             System.out.println("Connection accepted.");
             
             // Get the input stream (to read from) and output stream
             // (to write to), and wrap nice reader/writer classes around
             // the streams.
-            try 
-            {
+            try {
                 is = s.getInputStream();
                 br = new BufferedReader(new InputStreamReader(is));
 
@@ -83,128 +72,153 @@ class WebServer {
                 // Bail out if line is null. In case some client tries to be 
                 // funny and close immediately after connection.  (I am
                 // looking at you, Chrome!)
-                if (line == null)
-                {
+                if (line == null) {
                     continue;
                 }
                 
-                // We are expecting the first line to be GET <filename> ...
-                // We only care about the first two tokens here.
+                // Log client's requests.
+                System.out.println("Request: " + line);
+
                 String tokens[] = line.split(" ");
 
                 // If the first word is not GET, bail out.  We do not
                 // support PUT, HEAD, etc.
-                if (!tokens[0].equals("GET"))
-                {
-                    String errorMessage = "This simplistic server only understand GET request\r\n";
-                    dos.writeBytes("HTTP/1.1 400 Bad Request\r\n");
-                    dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
-                    dos.writeBytes(errorMessage);
-                    s.close();
+                String requestType = tokens[0];
+                if (!(requestType.equals("GET") && !requestType.equals("POST"))) {
+                    invalidRequestError();
                     continue;
                 }
 
                 // We do not really care about the rest of the HTTP
                 // request header either.  Read them off the input
                 // and throw them away.
-                while (!line.equals("")) 
-                {
+                while (!line.equals("")) {
                     line = br.readLine();
                 }
 
-                // Print to screen so that we have a log of client's 
-                // requests.
-                System.out.println("GET " + tokens[1]);
+                String urlComponents[] = tokens[1].split("\\?");
 
-                // The second token indicates the filename.
-                String filename = WEB_ROOT + tokens[1];
-                File file = new File(filename);
+                // if (tokens[1].indexOf("?") != -1) {
+                //     urlComponents = tokens[1].split("?");
+                // }
+
+                String fileName = urlComponents[0];
+
+                if (urlComponents[0].length() == 0) {
+                    fileNotFoundError(fileName);
+                    continue;
+                }
+
+                // The second token indicates the file name.
+                String filePath = WEB_ROOT + fileName;
+                File file = new File(filePath);
 
                 // Check for file permission or not found error.
-                if (!file.exists()) 
-                {
-                    String errorMessage = "I cannot find " + tokens[1] + " on this server.\r\n";
-                    dos.writeBytes("HTTP/1.1 404 Not Found\r\n");
-                    dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
-                    dos.writeBytes(errorMessage);
-                    s.close();
-                    continue;
-                }
-                if (!file.canRead()) 
-                {
-                    String errorMessage = "You have no permission to access " + tokens[1] + " on this server.\r\n";
-                    dos.writeBytes("HTTP/1.1 403 Forbidden\r\n");
-                    dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
-                    dos.writeBytes(errorMessage);
-                    s.close();
+                if (!file.exists()) {
+                    fileNotFoundError(fileName);
                     continue;
                 }
 
-                String queryString = "";
-                String env = "REQUEST_METHOD=GET " + queryString;
-                Process p = Runtime.getRuntime().exec(" /usr/bin/perl " + filename);
-                
-                dos.writeBytes("HTTP/1.0 200 OK\r\n");
-                BufferedReader br2 = new BufferedReader(new InputStreamReader(p.getInputStream()));
-
-                String l;
-                while ((l = br2.readLine()) != null) {
-                    dos.writeBytes(l + "\r\n");
+                if (!file.canRead()) {
+                    forbiddenAccessError(fileName);
+                    continue;
                 }
-                dos.writeBytes("\r\n");
 
-                os.flush();
+                if (fileName.endsWith("pl")) {
+                    System.out.println(fileName);
+                    String queryString = "";
+                    if (urlComponents.length > 1) {
+                        queryString = urlComponents[1];
+                    }
+                    String env = "REQUEST_METHOD=" + requestType + " " +
+                                 "QUERY_STRING=" + queryString + " ";
+                    Process p = Runtime.getRuntime().exec("/usr/bin/env " + env +
+                                                          "/usr/bin/perl " + filePath);
+
+                    // Assume everything is OK then.  Send back a reply.
+                    dos.writeBytes("HTTP/1.1 200 OK\r\n");
+
+                    // We send back some HTTP response headers.
+                    // dos.writeBytes("Content-length: " + file.length() + "\r\n");
+                    BufferedReader br2 = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+                    String l;
+                    while ((l = br2.readLine()) != null) {
+                        dos.writeBytes(l + "\r\n");
+                    }
+                    dos.writeBytes("\r\n");
+                } else {
+                    staticFileRequests(filePath, file);
+                }
+
+                dos.flush();
                 s.close();
-                System.out.println("connection closed");
+                System.out.println("Connection closed");
 
-
-
-
-
-
-
-
-                // // Assume everything is OK then.  Send back a reply.
-                // dos.writeBytes("HTTP/1.1 200 OK\r\n");
-
-                // // We send back some HTTP response headers.
-                // dos.writeBytes("Content-length: " + file.length() + "\r\n");
-
-                // // We could have use Files.probeContentType to find 
-                // // the content type of the requested file, but let 
-                // // me do the poor man approach here.
-                // if (filename.endsWith(".html")) 
-                // {
-                //     dos.writeBytes("Content-type: text/html\r\n");
-                // }
-                // if (filename.endsWith(".jpg")) 
-                // {
-                //     dos.writeBytes("Content-type: image/jpeg\r\n");
-                // }
-                // dos.writeBytes("\r\n");
-
-                // // Finish with HTTP response header.  Now send
-                // // the body of the file.
-                
-                // // Read the content 1KB at a time.
-                // byte[] buffer = new byte[1024];
-                // FileInputStream fis = new FileInputStream(file);
-                // int size = fis.read(buffer);
-                // while (size > 0) 
-                // {
-                //     dos.write(buffer, 0, size);
-                //     size = fis.read(buffer);
-                // }
-                // dos.flush();
-
-                // // Finally, close the socket and get ready for
-                // // another connection.
-                // s.close();
-            }
-            catch (IOException e)
-            {
+            } catch (IOException e) {
                 System.err.println("Unable to read/write: "  + e.getMessage());
             }
+        }
+    }
+
+    private static void staticFileRequests(String filePath, File file) {
+        try {
+            if (filePath.endsWith(".html")) {
+                dos.writeBytes("Content-type: text/html\r\n");
+            } else if (filePath.endsWith(".jpg")) {
+                dos.writeBytes("Content-type: image/jpeg\r\n");
+            } else if (filePath.endsWith("gif")) {
+                dos.writeBytes("Content-Type: image/gif\r\n");
+            } else if (filePath.endsWith("css")) {
+                dos.writeBytes("Content-Type: text/css\r\n");
+            }
+            dos.writeBytes("\r\n");
+            // Read the content 1KB at a time.
+            byte[] buffer = new byte[1024];
+            FileInputStream fis = new FileInputStream(file);
+            int size = fis.read(buffer);
+            while (size > 0) {
+                dos.write(buffer, 0, size);
+                size = fis.read(buffer);
+            }
+        } catch (IOException e) {
+            System.err.println("Unable to read/write: "  + e.getMessage());
+        }
+    }
+
+    private static void invalidRequestError() {
+        try {
+            String errorMessage = "The web server only understands GET or POST requests\r\n";
+            dos.writeBytes("HTTP/1.1 400 Bad Request\r\n");
+            dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
+            dos.writeBytes(errorMessage);
+            s.close();
+        } catch (IOException e) {
+            System.err.println("Unable to read/write: "  + e.getMessage());
+        }
+    }
+
+    private static void fileNotFoundError(String fileName) {
+        try {
+            String errorMessage = "Unable to find " + fileName + " on this server.\r\n";
+            dos.writeBytes("HTTP/1.1 404 Not Found\r\n");
+            dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
+            dos.writeBytes(errorMessage);
+            s.close();
+        } catch (IOException e) {
+            System.err.println("Unable to read/write: "  + e.getMessage());
+        }
+    }
+
+    private static void forbiddenAccessError(String fileName) {
+        try {
+            String errorMessage = "You have no permission to access " + fileName + " on this server.\r\n";
+            dos.writeBytes("HTTP/1.1 403 Forbidden\r\n");
+            dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
+            dos.writeBytes(errorMessage);
+            s.close();
+        } catch (IOException e) {
+            System.err.println("Unable to read/write: "  + e.getMessage());
         }
     }
 }

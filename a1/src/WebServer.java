@@ -19,14 +19,27 @@ class WebServer {
 	public static void main(String args[]) 
 	{
 		ServerSocket serverSocket;
-		// Create a server socket, listening on port 2105.
+		// Create a server socket, listening on port passed in via command line.
+		// Usage: java WebServer <port>
+		int port;
+		if (args.length != 1) 
+		{
+			System.err.println("Usage: java WebServer <port>");
+			return;
+		}
+		else
+		{
+			port = Integer.parseInt(args[0]);
+		}
+
 		try 
 		{
-			serverSocket = new ServerSocket(2105);
+			serverSocket = new ServerSocket(port);
+			System.out.println("Server created on port " + port);
 		} 
 		catch (IOException e)
 		{
-			System.err.println("Unable to listen on port 2105: " + e.getMessage());
+			System.err.println("Unable to listen on port " + port + ": " + e.getMessage());
 			return;
 		}
 

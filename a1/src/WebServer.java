@@ -20,6 +20,7 @@ class WebServer {
     private static InputStream is;
     private static OutputStream os;
     private static DataOutputStream dos;
+    private static HTTPParser httpParser;
 
     public static void main(String args[]) {
         ServerSocket serverSocket;
@@ -60,75 +61,81 @@ class WebServer {
                 os = s.getOutputStream();
                 dos = new DataOutputStream(os);
 
-                HTTPParser httpParser = new HTTPParser(is);
+                handleRequests();
 
-                // Only support GET or POST
-                String requestMethod = httpParser.getRequestMethod();
-                if (!(requestMethod.equals("GET") || requestMethod.equals("POST"))) {
-                    invalidRequestError();
-                    continue;
-                }
-
-                // The second token indicates the file name.
-                String fileName = httpParser.getFileName();
-                String filePath = WEB_ROOT + fileName;
-                File file = new File(filePath);
-
-                // Check for file permission or not found error.
-                if (!file.exists()) {
-                    fileNotFoundError(fileName);
-                    continue;
-                }
-
-                if (!file.canRead()) {
-                    forbiddenAccessError(fileName);
-                    continue;
-                }
-
-                // Assume everything is OK then.  Send back a reply.
-                dos.writeBytes("HTTP/1.1 200 OK\r\n");
-                
-                String queryString = httpParser.getQueryString();
-                
-                if (fileName.endsWith("pl")) {
-                    Process p;
-                    String env = "REQUEST_METHOD=" + requestMethod + " ";
-                    
-                    if (requestMethod.equals("POST")) {
-                        env = env + "CONTENT_TYPE=" + httpParser.getContentType() + " " +
-                                    "CONTENT_LENGTH=" + Integer.toString(httpParser.getContentLength()) + " ";
-                    } else {
-                        env = env + "QUERY_STRING=" + queryString + " ";
-                    }
-                    
-                    p = Runtime.getRuntime().exec("/usr/bin/env " + env +
-                                                  "/usr/bin/perl " + filePath);
-                    
-                    if (requestMethod.equals("POST")) {
-                        DataOutputStream o = new DataOutputStream(p.getOutputStream());
-                        o.writeBytes(httpParser.getFormData() + "\r\n");
-                        o.close();
-                    }
-
-                    // We send back some HTTP response headers.
-                    BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
-
-                    String l;
-                    while ((l = br.readLine()) != null) {
-                        dos.writeBytes(l + "\r\n");
-                    }
-                    dos.writeBytes("\r\n");
-                } else {
-                    staticFileRequests(filePath);
-                }
-
-                dos.flush();
                 s.close();
                 System.out.println("Connection closed\n");
             } catch (IOException e) {
                 System.err.println("Unable to read/write: "  + e.getMessage());
             }
         }
+    }
+
+    private static void handleRequests() throws IOException {
+
+        httpParser = new HTTPParser(is);
+
+        // Only support GET or POST
+        String requestMethod = httpParser.getRequestMethod();
+        if (!(requestMethod.equals("GET") || requestMethod.equals("POST"))) {
+            invalidRequestError();
+            return;
+        }
+
+        // The second token indicates the file name.
+        String fileName = httpParser.getFileName();
+        String filePath = WEB_ROOT + fileName;
+        File file = new File(filePath);
+
+        // Check for file permission or not found error.
+        if (!file.exists()) {
+            fileNotFoundError(fileName);
+            return;
+        }
+
+        if (!file.canRead()) {
+            forbiddenAccessError(fileName);
+            return;
+        }
+
+        // Assume everything is OK then.  Send back a reply.
+        dos.writeBytes("HTTP/1.1 200 OK\r\n");
+        
+        String queryString = httpParser.getQueryString();
+        
+        if (fileName.endsWith("pl")) {
+            Process p;
+            String env = "REQUEST_METHOD=" + requestMethod + " ";
+            
+            if (requestMethod.equals("POST")) {
+                env = env + "CONTENT_TYPE=" + httpParser.getContentType() + " " +
+                            "CONTENT_LENGTH=" + Integer.toString(httpParser.getContentLength()) + " ";
+            } else {
+                env = env + "QUERY_STRING=" + queryString + " ";
+            }
+            
+            p = Runtime.getRuntime().exec("/usr/bin/env " + env +
+                                          "/usr/bin/perl " + filePath);
+            
+            if (requestMethod.equals("POST")) {
+                DataOutputStream o = new DataOutputStream(p.getOutputStream());
+                o.writeBytes(httpParser.getFormData() + "\r\n");
+                o.close();
+            }
+
+            // We send back some HTTP response headers.
+            BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+            String l;
+            while ((l = br.readLine()) != null) {
+                dos.writeBytes(l + "\r\n");
+            }
+            dos.writeBytes("\r\n");
+        } else {
+            staticFileRequests(filePath);
+        }
+
+        dos.flush();
     }
 
     private static void staticFileRequests(String filePath) {
@@ -278,7 +285,7 @@ class HTTPParser {
     }
 
     public String getContentType() {
-        return headers.get("content-type").split(" ")[0];
+        return headers.get("content-type");
     }
 
     public int getContentLength() {

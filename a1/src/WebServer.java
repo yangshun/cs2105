@@ -4,8 +4,10 @@
  * This is a minimal working Web server to demonstrate
  * Java socket programming and simple HTTP interactions.
  * 
- * Author: Ooi Wei Tsang (ooiwt@comp.nus.edu.sg)
+ * Author: Tay Yang Shun (tay.yang.shun@nus.edu.sg)
+ *         Guo Yueheng (a0073256@nus.edu.sg)
  */
+
 import java.net.*;
 import java.io.*;
 import java.util.*;
@@ -13,9 +15,6 @@ import java.lang.Runtime;
 
 class WebServer {
 
-    // Configure the directory where all HTML files are 
-    // stored.  You need to change this to your own local
-    // directory if you want to play with this server code.
     static String WEB_ROOT = "../";
     private static Socket s;
     private static InputStream is;
@@ -55,20 +54,15 @@ class WebServer {
             }
 
             System.out.println("Connection accepted.");
-            
-            // Get the input stream (to read from) and output stream
-            // (to write to), and wrap nice reader/writer classes around
-            // the streams.
+
             try {
                 is = s.getInputStream();
-
                 os = s.getOutputStream();
                 dos = new DataOutputStream(os);
 
                 HTTPParser httpParser = new HTTPParser(is);
 
-                // If the first word is not GET or POST, bail out.  
-                // We do not support PUT, HEAD, etc.
+                // Only support GET or POST
                 String requestMethod = httpParser.getRequestMethod();
                 if (!(requestMethod.equals("GET") || requestMethod.equals("POST"))) {
                     invalidRequestError();

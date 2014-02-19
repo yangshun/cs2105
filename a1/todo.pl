@@ -167,7 +167,7 @@ sub update {
     }    
     if ($msg eq "")  
     {
-        $msg = "Attempting to update a non-existence item " . $q->param('id');
+        $msg = "Attempting to update a non-existent item " . $q->param('id');
         close(TODO);
         close(NEW);
         unlink($tmpfile);
@@ -212,7 +212,7 @@ sub del {
     $id = $q->param('id');
     if ($msg eq "")  
     {
-        $msg = "Attempting to delete an non-existence item " . $q->param('id');
+        $msg = "Attempting to delete an non-existent item " . $q->param('id');
         close(TODO);
         close(NEW);
         unlink($tmpfile);

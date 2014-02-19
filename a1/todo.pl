@@ -5,7 +5,7 @@ chdir $cwd;
 
 $q = new CGI();
 
-# mkdir ("$cwd/data", 0644) unless (-d "$cwd/data") || die ("unable to create dir $cwd/data: $!");
+mkdir ("$cwd/data", 0644) unless (-d "$cwd/data") || die ("unable to create dir $cwd/data: $!");
 
 sub trim($)
 {

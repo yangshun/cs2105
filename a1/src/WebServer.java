@@ -8,6 +8,7 @@
  */
 import java.net.*;
 import java.io.*;
+import java.util.*;
 import java.lang.Runtime;
 
 class WebServer {
@@ -19,7 +20,6 @@ class WebServer {
     private static Socket s;
     private static InputStream is;
     private static OutputStream os;
-    private static BufferedReader br;
     private static DataOutputStream dos;
 
     public static void main(String args[]) {
@@ -61,55 +61,22 @@ class WebServer {
             // the streams.
             try {
                 is = s.getInputStream();
-                br = new BufferedReader(new InputStreamReader(is));
 
                 os = s.getOutputStream();
                 dos = new DataOutputStream(os);
 
-                // Now, we wait for HTTP request from the connection
-                String line = br.readLine();
+                HTTPParser httpParser = new HTTPParser(is);
 
-                // Bail out if line is null. In case some client tries to be 
-                // funny and close immediately after connection.  (I am
-                // looking at you, Chrome!)
-                if (line == null) {
-                    continue;
-                }
-                
-                // Log client's requests.
-                System.out.println("Request: " + line);
-
-                String tokens[] = line.split(" ");
-
-                // If the first word is not GET, bail out.  We do not
-                // support PUT, HEAD, etc.
-                String requestType = tokens[0];
-                if (!(requestType.equals("GET") && !requestType.equals("POST"))) {
+                // If the first word is not GET or POST, bail out.  
+                // We do not support PUT, HEAD, etc.
+                String requestMethod = httpParser.getRequestMethod();
+                if (!(requestMethod.equals("GET") || requestMethod.equals("POST"))) {
                     invalidRequestError();
                     continue;
                 }
 
-                // We do not really care about the rest of the HTTP
-                // request header either.  Read them off the input
-                // and throw them away.
-                while (!line.equals("")) {
-                    line = br.readLine();
-                }
-
-                String urlComponents[] = tokens[1].split("\\?");
-
-                // if (tokens[1].indexOf("?") != -1) {
-                //     urlComponents = tokens[1].split("?");
-                // }
-
-                String fileName = urlComponents[0];
-
-                if (urlComponents[0].length() == 0) {
-                    fileNotFoundError(fileName);
-                    continue;
-                }
-
                 // The second token indicates the file name.
+                String fileName = httpParser.getFileName();
                 String filePath = WEB_ROOT + fileName;
                 File file = new File(filePath);
 
@@ -126,24 +93,34 @@ class WebServer {
 
                 // Assume everything is OK then.  Send back a reply.
                 dos.writeBytes("HTTP/1.1 200 OK\r\n");
-
+                
+                String queryString = httpParser.getQueryString();
+                
                 if (fileName.endsWith("pl")) {
-                    System.out.println(fileName);
-                    String queryString = "";
-                    if (urlComponents.length > 1) {
-                        queryString = urlComponents[1];
+                    Process p;
+                    String env = "REQUEST_METHOD=" + requestMethod + " ";
+                    
+                    if (requestMethod.equals("POST")) {
+                        env = env + "CONTENT_TYPE=" + httpParser.getContentType() + " " +
+                                    "CONTENT_LENGTH=" + Integer.toString(httpParser.getContentLength()) + " ";
+                    } else {
+                        env = env + "QUERY_STRING=" + queryString + " ";
                     }
-                    String env = "REQUEST_METHOD=" + requestType + " " +
-                                 "QUERY_STRING=" + queryString + " ";
-                    Process p = Runtime.getRuntime().exec("/usr/bin/env " + env +
-                                                          "/usr/bin/perl " + filePath);
+                    
+                    p = Runtime.getRuntime().exec("/usr/bin/env " + env +
+                                                  "/usr/bin/perl " + filePath);
+                    
+                    if (requestMethod.equals("POST")) {
+                        DataOutputStream o = new DataOutputStream(p.getOutputStream());
+                        o.writeBytes(httpParser.getFormData() + "\r\n");
+                        o.close();
+                    }
 
                     // We send back some HTTP response headers.
-                    // dos.writeBytes("Content-length: " + file.length() + "\r\n");
-                    BufferedReader br2 = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                    BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
 
                     String l;
-                    while ((l = br2.readLine()) != null) {
+                    while ((l = br.readLine()) != null) {
                         dos.writeBytes(l + "\r\n");
                     }
                     dos.writeBytes("\r\n");
@@ -153,8 +130,7 @@ class WebServer {
 
                 dos.flush();
                 s.close();
-                System.out.println("Connection closed");
-
+                System.out.println("Connection closed\n");
             } catch (IOException e) {
                 System.err.println("Unable to read/write: "  + e.getMessage());
             }
@@ -221,5 +197,101 @@ class WebServer {
         } catch (IOException e) {
             System.err.println("Unable to read/write: "  + e.getMessage());
         }
+    }
+}
+
+class HTTPParser {
+    
+    private BufferedReader br;
+    private String requestMethod, fileName, queryString, formData;
+    private Hashtable<String, String> headers;
+    private int[] ver;
+
+    public HTTPParser(InputStream is) {
+        br = new BufferedReader(new InputStreamReader(is));
+        requestMethod = "";
+        fileName = "";
+        queryString = "";
+        formData = "";
+        headers = new Hashtable<String, String>();
+        try {
+            // Now, we wait for HTTP request from the connection
+            String line = br.readLine();
+
+            // Bail out if line is null. In case some client tries to be 
+            // funny and close immediately after connection.  (I am
+            // looking at you, Chrome!)
+            if (line == null) {
+                return;
+            }
+            
+            // Log client's requests.
+            System.out.println("Request: " + line);
+
+            String tokens[] = line.split(" ");
+
+            requestMethod = tokens[0];
+
+            if (tokens[1].indexOf("?") != -1) {
+                String urlComponents[] = tokens[1].split("\\?");
+                fileName = urlComponents[0];
+                if (urlComponents.length > 0) {
+                    queryString = urlComponents[1];
+                }
+            } else {
+                fileName = tokens[1];
+            }
+
+            // Read and parse the rest of the HTTP headers
+            int idx;
+            line = br.readLine();
+
+            while (!line.equals("")) {
+                idx = line.indexOf(":");
+                if (idx < 0) {
+                    headers = null;
+                    break;
+                } else {
+                    headers.put(line.substring(0, idx).toLowerCase(), line.substring(idx+1).trim());
+                }
+                line = br.readLine();
+            }
+
+            // read file data if POST
+            if (requestMethod.equals("POST")) {
+                int contentLength = getContentLength();
+                final char[] data = new char[contentLength];
+                for (int i = 0; i < contentLength; i++) {
+                    data[i] = (char)br.read();
+                }
+                formData = new String(data);
+            }
+        } catch (IOException e) {
+            System.err.println("Unable to read/write: "  + e.getMessage());
+        }
+    }
+
+    public String getRequestMethod() {
+        return requestMethod;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public String getQueryString() {
+        return queryString;
+    }
+
+    public String getContentType() {
+        return headers.get("content-type").split(" ")[0];
+    }
+
+    public int getContentLength() {
+        return Integer.parseInt(headers.get("content-length"));
+    }
+
+    public String getFormData() {
+        return formData;
     }
 }

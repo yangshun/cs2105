@@ -4,7 +4,7 @@
  * This is a minimal working Web server to demonstrate
  * Java socket programming and simple HTTP interactions.
  * 
- * Author: Tay Yang Shun (tay.yang.shun@nus.edu.sg)
+ * Author: Tay Yang Shun (a0073063@nus.edu.sg)
  *         Guo Yueheng (a0073256@nus.edu.sg)
  */
 
@@ -20,7 +20,7 @@ class WebServer {
     private static InputStream is;
     private static OutputStream os;
     private static DataOutputStream dos;
-    private static HTTPParser httpParser;
+    private static HTTPRequestParser httpRequestParser;
 
     public static void main(String args[]) {
         ServerSocket serverSocket;
@@ -36,14 +36,13 @@ class WebServer {
 
         try {
             serverSocket = new ServerSocket(port);
-            System.out.println("Server created on port " + port);
+            System.out.println("Server listening on port " + port);
         } catch (IOException e) {
             System.err.println("Unable to listen on port " + port + ": " + e.getMessage());
             return;
         }
 
-        // The server listens forever for new connections.  This
-        // version handles only one connection at a time.
+        // The server listens forever for new connections.
         while (true) {
             
             // Wait for someone to connect.
@@ -60,7 +59,6 @@ class WebServer {
                 is = s.getInputStream();
                 os = s.getOutputStream();
                 dos = new DataOutputStream(os);
-
                 handleRequests();
 
                 s.close();
@@ -72,18 +70,17 @@ class WebServer {
     }
 
     private static void handleRequests() throws IOException {
-
-        httpParser = new HTTPParser(is);
+        httpRequestParser = new HTTPRequestParser(is);
 
         // Only support GET or POST
-        String requestMethod = httpParser.getRequestMethod();
+        String requestMethod = httpRequestParser.getRequestMethod();
         if (!(requestMethod.equals("GET") || requestMethod.equals("POST"))) {
             invalidRequestError();
             return;
         }
 
         // The second token indicates the file name.
-        String fileName = httpParser.getFileName();
+        String fileName = httpRequestParser.getFileName();
         String filePath = WEB_ROOT + fileName;
         File file = new File(filePath);
 
@@ -101,29 +98,29 @@ class WebServer {
         // Assume everything is OK then.  Send back a reply.
         dos.writeBytes("HTTP/1.1 200 OK\r\n");
         
-        String queryString = httpParser.getQueryString();
+        String queryString = httpRequestParser.getQueryString();
         
         if (fileName.endsWith("pl")) {
             Process p;
             String env = "REQUEST_METHOD=" + requestMethod + " ";
             
             if (requestMethod.equals("POST")) {
-                env = env + "CONTENT_TYPE=" + httpParser.getContentType() + " " +
-                            "CONTENT_LENGTH=" + Integer.toString(httpParser.getContentLength()) + " ";
+                env += "CONTENT_TYPE=" + httpRequestParser.getContentType() + " " +
+                       "CONTENT_LENGTH=" + Integer.toString(httpRequestParser.getContentLength()) + " ";
             } else {
-                env = env + "QUERY_STRING=" + queryString + " ";
+                env += "QUERY_STRING=" + queryString + " ";
             }
             
             p = Runtime.getRuntime().exec("/usr/bin/env " + env +
                                           "/usr/bin/perl " + filePath);
             
             if (requestMethod.equals("POST")) {
+                // Pass form data into Perl process
                 DataOutputStream o = new DataOutputStream(p.getOutputStream());
-                o.writeBytes(httpParser.getFormData() + "\r\n");
+                o.writeBytes(httpRequestParser.getFormData() + "\r\n");
                 o.close();
             }
 
-            // We send back some HTTP response headers.
             BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
 
             String l;
@@ -164,51 +161,36 @@ class WebServer {
         }
     }
 
-    private static void invalidRequestError() {
-        try {
-            String errorMessage = "The web server only understands GET or POST requests\r\n";
-            dos.writeBytes("HTTP/1.1 400 Bad Request\r\n");
-            dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
-            dos.writeBytes(errorMessage);
-            s.close();
-        } catch (IOException e) {
-            System.err.println("Unable to read/write: "  + e.getMessage());
-        }
+    private static void invalidRequestError() throws IOException {
+        String errorMessage = "The web server only understands GET or POST requests\r\n";
+        dos.writeBytes("HTTP/1.1 400 Bad Request\r\n");
+        dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
+        dos.writeBytes(errorMessage);
     }
 
-    private static void fileNotFoundError(String fileName) {
-        try {
-            String errorMessage = "Unable to find " + fileName + " on this server.\r\n";
-            dos.writeBytes("HTTP/1.1 404 Not Found\r\n");
-            dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
-            dos.writeBytes(errorMessage);
-            s.close();
-        } catch (IOException e) {
-            System.err.println("Unable to read/write: "  + e.getMessage());
-        }
+    private static void fileNotFoundError(String fileName) throws IOException {
+        String errorMessage = "Unable to find " + fileName + " on this server.\r\n";
+        dos.writeBytes("HTTP/1.1 404 Not Found\r\n");
+        dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
+        dos.writeBytes(errorMessage);
     }
 
-    private static void forbiddenAccessError(String fileName) {
-        try {
-            String errorMessage = "You have no permission to access " + fileName + " on this server.\r\n";
-            dos.writeBytes("HTTP/1.1 403 Forbidden\r\n");
-            dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
-            dos.writeBytes(errorMessage);
-            s.close();
-        } catch (IOException e) {
-            System.err.println("Unable to read/write: "  + e.getMessage());
-        }
+    private static void forbiddenAccessError(String fileName) throws IOException {
+        String errorMessage = "You have no permission to access " + fileName + " on this server.\r\n";
+        dos.writeBytes("HTTP/1.1 403 Forbidden\r\n");
+        dos.writeBytes("Content-length: " + errorMessage.length() + "\r\n\r\n");
+        dos.writeBytes(errorMessage);
     }
 }
 
-class HTTPParser {
+class HTTPRequestParser {
     
     private BufferedReader br;
     private String requestMethod, fileName, queryString, formData;
     private Hashtable<String, String> headers;
     private int[] ver;
 
-    public HTTPParser(InputStream is) {
+    public HTTPRequestParser(InputStream is) {
         br = new BufferedReader(new InputStreamReader(is));
         requestMethod = "";
         fileName = "";
@@ -216,7 +198,7 @@ class HTTPParser {
         formData = "";
         headers = new Hashtable<String, String>();
         try {
-            // Now, we wait for HTTP request from the connection
+            // Wait for HTTP request from the connection
             String line = br.readLine();
 
             // Bail out if line is null. In case some client tries to be 
@@ -253,12 +235,13 @@ class HTTPParser {
                     headers = null;
                     break;
                 } else {
-                    headers.put(line.substring(0, idx).toLowerCase(), line.substring(idx+1).trim());
+                    headers.put(line.substring(0, idx).toLowerCase(), 
+                                line.substring(idx+1).trim());
                 }
                 line = br.readLine();
             }
 
-            // read file data if POST
+            // read form data if POST
             if (requestMethod.equals("POST")) {
                 int contentLength = getContentLength();
                 final char[] data = new char[contentLength];

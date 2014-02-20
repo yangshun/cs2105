@@ -2,7 +2,8 @@
  * WebServer.java
  * 
  * This is a minimal working Web server to demonstrate
- * Java socket programming and simple HTTP interactions.
+ * Java socket programming and simple HTTP requests
+ * such as GET and POST.
  * 
  * Author: Tay Yang Shun (a0073063@nus.edu.sg)
  *         Guo Yueheng (a0073256@nus.edu.sg)
@@ -123,6 +124,7 @@ class WebServer {
 
             BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
 
+            // Write response content
             String l;
             while ((l = br.readLine()) != null) {
                 dos.writeBytes(l + "\r\n");

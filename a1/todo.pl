@@ -22,12 +22,11 @@ sub header {
                         -style => {-src=>'style.css'}),
         $q->h1('To-Do List');
 }
-
 sub list {
     
     if (not -e "TODO") 
     {
-        open(FILE, "> TODO") || die("cannot create TODO");
+         open(FILE, "> TODO") || die("cannot create TODO");
     }
 
     open(TODO, "TODO") || die("Could not open TODO!");
@@ -167,7 +166,7 @@ sub update {
     }    
     if ($msg eq "")  
     {
-        $msg = "Attempting to update a non-existent item " . $q->param('id');
+        $msg = "Attempting to update a non-existence item " . $q->param('id');
         close(TODO);
         close(NEW);
         unlink($tmpfile);
@@ -212,7 +211,7 @@ sub del {
     $id = $q->param('id');
     if ($msg eq "")  
     {
-        $msg = "Attempting to delete an non-existent item " . $q->param('id');
+        $msg = "Attempting to delete an non-existence item " . $q->param('id');
         close(TODO);
         close(NEW);
         unlink($tmpfile);

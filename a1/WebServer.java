@@ -16,7 +16,7 @@ import java.lang.Runtime;
 
 class WebServer {
 
-    static String WEB_ROOT = "../";
+    static String WEB_ROOT = "./";
     private static Socket s;
     private static InputStream is;
     private static OutputStream os;
@@ -31,9 +31,9 @@ class WebServer {
         if (args.length != 1) {
             System.err.println("Usage: java WebServer <port>");
             return;
-        } else {
-            port = Integer.parseInt(args[0]);
-        }
+        } 
+        
+        port = Integer.parseInt(args[0]);
 
         try {
             serverSocket = new ServerSocket(port);
@@ -41,7 +41,7 @@ class WebServer {
         } catch (IOException e) {
             System.err.println("Unable to listen on port " + port + ": " + e.getMessage());
             return;
-        }
+        } 
 
         // The server listens forever for new connections.
         while (true) {
@@ -80,7 +80,6 @@ class WebServer {
             return;
         }
 
-        // The second token indicates the file name.
         String fileName = httpRequestParser.getFileName();
         String filePath = WEB_ROOT + fileName;
         File file = new File(filePath);
@@ -230,7 +229,6 @@ class HTTPRequestParser {
             // Read and parse the rest of the HTTP headers
             int idx;
             line = br.readLine();
-
             while (!line.equals("")) {
                 idx = line.indexOf(":");
                 if (idx < 0) {
@@ -250,7 +248,7 @@ class HTTPRequestParser {
                 for (int i = 0; i < contentLength; i++) {
                     data[i] = (char)br.read();
                 }
-                formData = new String(data);
+                formData = new String(data);                
             }
         } catch (IOException e) {
             System.err.println("Unable to read/write: "  + e.getMessage());

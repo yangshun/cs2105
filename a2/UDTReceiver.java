@@ -28,8 +28,8 @@ class UDTReceiver {
 	ObjectInputStream ois;
 	ObjectOutputStream oos;
 	
-	static double P_DROP = 0.75;
-	static double P_CORRUPT = 0.75;
+	static double P_DROP = 0.2;
+	static double P_CORRUPT = 0.2;
 
 	Random random;
 	

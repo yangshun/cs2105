@@ -22,7 +22,7 @@ class RDTSender {
     int totalSent;
     boolean closingPacketSent;
 
-    static long DELAY = 100;
+    static long DELAY = 5;
 
     RDTSender(String hostname, int port) throws IOException
     {

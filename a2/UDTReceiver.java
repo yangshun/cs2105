@@ -28,8 +28,8 @@ class UDTReceiver {
 	ObjectInputStream ois;
 	ObjectOutputStream oos;
 	
-	static double P_DROP = 0.2;
-	static double P_CORRUPT = 0.2;
+	static double P_DROP = 0.75;
+	static double P_CORRUPT = 0.75;
 
 	Random random;
 	
@@ -65,7 +65,7 @@ class UDTReceiver {
 		obj = ois.readObject();
 		while (random.nextDouble() < P_DROP) {
 			// Randomly drop a packet
-			System.out.println("R: packet drop");
+			System.out.println("R (UDT): packet drop");
 			obj = ois.readObject();
 		}
 
@@ -73,7 +73,7 @@ class UDTReceiver {
 
 		// Randomly corrupt the packet
 		if (random.nextDouble() < P_CORRUPT) {
-			System.out.println("R: corrupt " + dataPkt.seq);
+			System.out.println("R (UDT): corrupt " + dataPkt.seq);
 			// create a new random packet
 			byte data[] = null;
 			if (dataPkt.length > 0) {
@@ -84,7 +84,7 @@ class UDTReceiver {
 				random.nextInt(1));
 			dataPkt.isCorrupted = true;
 		}
-		System.out.println("R: recv " + dataPkt.seq);
+		System.out.println("R (UDT): recv " + dataPkt.seq);
 		return dataPkt;
 	}
 	
@@ -94,7 +94,7 @@ class UDTReceiver {
 	 * stream.
 	 */
 	void send(AckPacket ack) throws IOException {
-		System.out.println("R: send ACK " + ack.ack);
+		System.out.println("R (UDT): send ACK " + ack.ack);
 		oos.writeObject(ack);
 		oos.flush();
 	}

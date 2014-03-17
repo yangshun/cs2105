@@ -29,8 +29,8 @@ class UDTSender {
 
 	// Set the packet loss probability.  EDIT the following
 	// line to change the loss probability.
-	static double P_DROP = 0.2;
-	static double P_CORRUPT = 0.2;
+	static double P_DROP = 0.75;
+	static double P_CORRUPT = 0.75;
 
 	UDTSender (String hostname, int port) throws IOException
 	{
@@ -56,7 +56,7 @@ class UDTSender {
 	 */
 	synchronized void send(DataPacket p) throws IOException
 	{
-		System.out.println("S: send " + p.seq);
+		System.out.println("S (UDT): send " + p.seq);
 		oos.writeObject(p);
 		oos.flush();
 	}
@@ -72,19 +72,19 @@ class UDTSender {
 	{
 		Object obj = ois.readObject();
 		while (random.nextDouble() < P_DROP) {
-			System.out.println("S: packet drop");
+			System.out.println("S (UDT): packet drop");
 			obj = ois.readObject();
 		}
 		AckPacket ack = (AckPacket)obj;
 
 		// randomly corrupt the received packet.
 		if (random.nextDouble() < P_CORRUPT) {
-			System.out.println("S: corrupt ACK " + ack.ack);
+			System.out.println("S (UDT): corrupt ACK " + ack.ack);
 			// create a return a new corrupted ACK.
 			ack = new AckPacket(random.nextInt(1));
 			ack.isCorrupted = true;
 		}
-		System.out.println("S: recv ACK " + ack.ack);
+		System.out.println("S (UDT): recv ACK " + ack.ack);
 		return ack;
 	}
 

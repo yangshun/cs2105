@@ -16,39 +16,54 @@ import java.util.*;
  * the byte array contained it it to the "above".
  */
 class RDTReceiver {
-	UDTReceiver udt;
+    UDTReceiver udt;
+    int seqNumber;
+    int totalReceived;
 
-	RDTReceiver(int port) throws IOException
-	{
-		udt = new UDTReceiver(port);
-	}
+    RDTReceiver(int port) throws IOException
+    {
+        udt = new UDTReceiver(port);
+        seqNumber = 0;
+        totalReceived = 0;
+    }
 
-	/**
-	 * recv() reads the next in-order, uncorrupted data packet 
-	 * from the layer below and returns the byte array contains 
-	 * the data.  It returns null if when there is no more data 
-	 * to read (i.e., the transmission is complete).
-	 */
-	byte[] recv() throws IOException, ClassNotFoundException
-	{
-		DataPacket p = udt.recv();
+    /**
+     * recv() reads the next in-order, uncorrupted data packet 
+     * from the layer below and returns the byte array contains 
+     * the data.  It returns null if when there is no more data 
+     * to read (i.e., the transmission is complete).
+     */
+    byte[] recv() throws IOException, ClassNotFoundException
+    {
+        while (true) {
+            DataPacket p = udt.recv();
 
-        // send ACK
-		AckPacket ack = new AckPacket(p.seq);
-		udt.send(ack);
+            if (!p.isCorrupted && p.seq == seqNumber) {
+                System.out.println("R (RDT): totalReceived --------------- " + totalReceived);
+                totalReceived++;
+                // send ACK
+                AckPacket ack = new AckPacket(p.seq);
+                udt.send(ack);
+                seqNumber = (seqNumber+1)%2;
+                // deliver data
+                if (p.length > 0) {
+                    byte [] copy = new byte[p.length];
+                    System.arraycopy(p.data, 0, copy, 0, p.length);
+                    return copy;
+                } else {
+                    return null;
+                }
+            } else {
+                int otherSeq = (seqNumber+1)%2;
+                AckPacket ack = new AckPacket(otherSeq);
+                udt.send(ack);
+            }     
+            System.out.println("R (RDT): While true");
+        }
+    }
 
-        // deliver data
-		if (p.length > 0) {
-			byte [] copy = new byte[p.length];
-			System.arraycopy(p.data, 0, copy, 0, p.length);
-			return copy;
-		} else {
-			return null;
-		}
-	}
-
-	void close() throws IOException
-	{
-		udt.close();
-	}
+    void close() throws IOException
+    {
+        udt.close();
+    }
 }

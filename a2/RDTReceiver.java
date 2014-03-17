@@ -36,29 +36,33 @@ class RDTReceiver {
     byte[] recv() throws IOException, ClassNotFoundException
     {
         while (true) {
-            DataPacket p = udt.recv();
+            try {
+                DataPacket p = udt.recv();
 
-            if (!p.isCorrupted && p.seq == seqNumber) {
-                System.out.println("R (RDT): totalReceived --------------- " + totalReceived);
-                totalReceived++;
-                // send ACK
-                AckPacket ack = new AckPacket(p.seq);
-                udt.send(ack);
-                seqNumber = (seqNumber+1)%2;
-                // deliver data
-                if (p.length > 0) {
-                    byte [] copy = new byte[p.length];
-                    System.arraycopy(p.data, 0, copy, 0, p.length);
-                    return copy;
+                if (!p.isCorrupted && p.seq == seqNumber) {
+                    System.out.println("R (RDT): totalReceived --------------- " + totalReceived);
+                    totalReceived++;
+                    // send ACK
+                    AckPacket ack = new AckPacket(p.seq);
+                    udt.send(ack);
+                    seqNumber = (seqNumber+1)%2;
+                    // deliver data
+                    if (p.length > 0) {
+                        byte [] copy = new byte[p.length];
+                        System.arraycopy(p.data, 0, copy, 0, p.length);
+                        return copy;
+                    } else {
+                        return null;
+                    }
                 } else {
-                    return null;
-                }
-            } else {
-                int otherSeq = (seqNumber+1)%2;
-                AckPacket ack = new AckPacket(otherSeq);
-                udt.send(ack);
-            }     
-            System.out.println("R (RDT): While true");
+                    int otherSeq = (seqNumber+1)%2;
+                    AckPacket ack = new AckPacket(otherSeq);
+                    udt.send(ack);
+                }     
+            } catch (EOFException e) {
+                udt.close();
+                return null;
+            }
         }
     }
 

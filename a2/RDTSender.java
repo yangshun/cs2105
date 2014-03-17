@@ -20,6 +20,7 @@ class RDTSender {
     int seqNumber;
     Timer timer;
     int totalSent;
+    boolean closingPacketSent;
 
     static long DELAY = 100;
 
@@ -28,6 +29,7 @@ class RDTSender {
         udt = new UDTSender(hostname, port);
         seqNumber = 0;
         totalSent = 0;
+        closingPacketSent = false;
     }
 
     /**
@@ -38,6 +40,10 @@ class RDTSender {
     void send(byte[] data, int length) throws IOException, ClassNotFoundException
     {
         // send packet
+        if (closingPacketSent) {
+            this.close();
+        }
+
         DataPacket p = new DataPacket(data, length, seqNumber);
         System.out.println("S (RDT): send " + p.seq);
         udt.send(p);
@@ -73,16 +79,21 @@ class RDTSender {
     void close() throws IOException, ClassNotFoundException
     {
         DataPacket p = new DataPacket(null, 0, seqNumber);
-        System.out.println("S (RDT): Closing packet");
+        System.out.println("S (RDT): Send closing packet");
         udt.send(p);
+        closingPacketSent = true;
+
+        timer = new Timer();
+        timer.schedule(new PacketTimer(udt, p), DELAY, DELAY);
+
         try {
             AckPacket ack = udt.recv();
         } catch (EOFException e) {
-            System.out.println("S (RDT): EOF");
-            udt.close();
         } finally {
-            System.out.println("S (RDT): EOF Finally");
+            System.out.println("S (RDT): EOF Reached. DONE!");
+            timer.cancel();
             udt.close();
+            return;
         }
     }
 }
@@ -100,6 +111,7 @@ class PacketTimer extends TimerTask {
             udt.send(resendPacket);
         } catch (IOException e) {
             e.printStackTrace();
+            this.cancel();
         }
     }
 }

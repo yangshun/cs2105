@@ -57,8 +57,7 @@ class RDTSender {
                 System.out.println("S (RDT): totalSent --------------- " + totalSent);
                 totalSent++;
                 timer.cancel();
-                seqNumber++;
-                seqNumber %= 2;
+                seqNumber = (seqNumber+1)%2;
                 break;
             }
             System.out.println("S (RDT): While true");

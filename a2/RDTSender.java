@@ -60,7 +60,6 @@ class RDTSender {
                 seqNumber = (seqNumber+1)%2;
                 break;
             }
-            System.out.println("S (RDT): While true");
         }
     }
 
